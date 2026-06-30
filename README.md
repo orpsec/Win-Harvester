@@ -3,7 +3,7 @@
 Kapsamlı, modüler bir **Windows Forensic Artifact Collector** (Go). Windows 10 ve
 Windows 11 üzerinde; olay müdahalesi (IR), adli bilişim (DFIR), zararlı yazılım
 analizi ve tehdit avcılığı için **salt-okunur** delil toplama amacıyla
-tasarlanmıştır. Hedef seviye: KAPE / Velociraptor / CyLR.
+tasarlanmıştır. 
 
 ## Temel İlkeler
 
