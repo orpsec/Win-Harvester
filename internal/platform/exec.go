@@ -41,6 +41,11 @@ func RunContext(ctx context.Context, timeout time.Duration, name string, args ..
 	var out, errb bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &errb
+	// WaitDelay guarantees Run() returns even when a killed process left a
+	// grandchild (e.g. WmiPrvSE.exe spawned by WMI/CIM calls) holding the output
+	// pipe open. Without this, a hung WMI query blocks the whole collection
+	// indefinitely despite the context timeout.
+	cmd.WaitDelay = 10 * time.Second
 	err := cmd.Run()
 	res := CmdResult{
 		Cmd:      name,

@@ -69,11 +69,15 @@ func (m eventLogsModule) exportReadable(ctx context.Context, h *collect.Helper) 
 		safe := sanitizeChannel(ch)
 		// Select the fields most useful for triage; ConvertTo-Json depth keeps
 		// nested data. -MaxEvents bounds very large channels like Security.
+		// Note: the whole script is passed to powershell.exe -Command, so it must
+		// avoid literal double-quotes that would clash with Go/shell quoting. The
+		// error branch emits a plain '# ERROR: ...' line instead of JSON to keep
+		// the quoting simple and robust (this was a v1.0.0 bug).
 		script := `try {
-  $e = Get-WinEvent -LogName '` + ch + `' -MaxEvents ` + itoa(maxEvents) + ` -ErrorAction Stop |
-    Select-Object TimeCreated, Id, LevelDisplayName, ProviderName, MachineName, UserId, Message
-  $e | ConvertTo-Json -Depth 4
-} catch { Write-Output ('{"error":"' + ($_.Exception.Message -replace "\"","'") + '"}') }`
+  Get-WinEvent -LogName '` + ch + `' -MaxEvents ` + itoa(maxEvents) + ` -ErrorAction Stop |
+    Select-Object TimeCreated, Id, LevelDisplayName, ProviderName, MachineName, UserId, Message |
+    ConvertTo-Json -Depth 4
+} catch { Write-Output ('# ERROR: ' + $_.Exception.Message) }`
 		out := h.PowerShellToFile(ctx, "parsed/"+safe+".json", 4*time.Minute, script)
 		if out != "" && !startsWithErr(out) {
 			exported++
@@ -89,6 +93,9 @@ func sanitizeChannel(ch string) string {
 
 func startsWithErr(s string) bool {
 	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "# ERROR:") {
+		return true
+	}
 	return strings.HasPrefix(s, `{"error"`)
 }
 

@@ -41,6 +41,7 @@ func NewVSS(ctx context.Context, log core.Logger, targetVolume string, enabled b
 		log.Warnf("VSS requires administrative privileges; falling back to live reads")
 		return v
 	}
+	log.Infof("creating Volume Shadow Copy of %s (this can take up to a minute)...", v.drive)
 	if err := v.create(ctx); err != nil {
 		log.Warnf("could not create Volume Shadow Copy: %v (falling back to live reads)", err)
 		return v
@@ -51,14 +52,18 @@ func NewVSS(ctx context.Context, log core.Logger, targetVolume string, enabled b
 }
 
 func (v *VSS) create(ctx context.Context) error {
-	// Use WMI Win32_ShadowCopy.Create via PowerShell — supported on Win10/11.
+	// Create the snapshot with the modern CIM stack. Get-WmiObject is deprecated
+	// and can hang indefinitely on Windows 11 (24H2/25H2), so Invoke-CimMethod
+	// is used instead. A hard timeout guarantees we never block the whole run.
 	script := fmt.Sprintf(
-		`$r=(Get-WmiObject -List Win32_ShadowCopy).Create("%s\","ClientAccessible");`+
-			`if($r.ReturnValue -ne 0){Write-Error "ReturnValue=$($r.ReturnValue)";exit 1};`+
-			`$sc=Get-WmiObject Win32_ShadowCopy | ?{$_.ID -eq $r.ShadowID};`+
-			`Write-Output ($sc.ID + "|" + $sc.DeviceObject)`,
+		`$ErrorActionPreference='Stop';`+
+			`$cls=Get-CimClass -ClassName Win32_ShadowCopy;`+
+			`$r=Invoke-CimMethod -CimClass $cls -MethodName Create -Arguments @{Volume='%s\';Context='ClientAccessible'};`+
+			`if($r.ReturnValue -ne 0){Write-Error ("ReturnValue="+$r.ReturnValue);exit 1};`+
+			`$sc=Get-CimInstance Win32_ShadowCopy | Where-Object {$_.ID -eq $r.ShadowID};`+
+			`Write-Output ($sc.ID + '|' + $sc.DeviceObject)`,
 		v.drive)
-	res := PowerShell(ctx, 90*time.Second, script)
+	res := PowerShell(ctx, 120*time.Second, script)
 	if res.Err != nil {
 		return fmt.Errorf("%v: %s", res.Err, strings.TrimSpace(res.Stderr))
 	}
@@ -113,7 +118,9 @@ func (v *VSS) Cleanup(ctx context.Context) {
 	if !v.available || v.shadowID == "" {
 		return
 	}
-	script := fmt.Sprintf(`(Get-WmiObject Win32_ShadowCopy | ?{$_.ID -eq "%s"}).Delete()`, v.shadowID)
+	script := fmt.Sprintf(
+		`Get-CimInstance Win32_ShadowCopy | Where-Object {$_.ID -eq '%s'} | Remove-CimInstance`,
+		v.shadowID)
 	res := PowerShell(ctx, 30*time.Second, script)
 	if res.Err != nil {
 		v.log.Warnf("failed to delete shadow copy %s: %v", v.shadowID, res.Err)
