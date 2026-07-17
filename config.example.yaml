@@ -1,0 +1,52 @@
+# WinHarvest configuration (example)
+# All fields are optional; unset values fall back to defaults.
+# CLI flags override config-file values when explicitly provided.
+
+# Parent directory under which Collection_<host>_<timestamp>/ is created.
+output_dir: "."
+
+# Allow-list of modules to run. Empty = run all registered modules.
+# Run `winharvest -list` to see every module name.
+modules: []
+#  - system
+#  - eventlogs
+#  - registry
+
+# Deny-list applied after the allow-list.
+exclude_modules: []
+
+# Number of modules executed in parallel.
+concurrency: 4
+
+# Use Volume Shadow Copy to read locked files (SAM, SYSTEM, $MFT, EVTX...).
+# Requires administrative privileges. Falls back to live reads if unavailable.
+use_vss: true
+
+# Skip any single file larger than this many bytes. 0 = unlimited.
+max_file_size: 0
+
+# Compute SHA256/SHA1/MD5 for every collected file.
+compute_hashes: true
+
+# Collect owner + ACL (SDDL) for every file (slightly slower).
+collect_acl: true
+
+# Package the whole collection into a single .zip when finished.
+zip: true
+
+# Reports to generate.
+report_formats:
+  - json
+  - csv
+  - html
+  - md
+
+# Recorded in the run manifest for chain of custody.
+case_name: "IR-2026-0001"
+examiner: "analyst@example.com"
+
+# Target volume root.
+target_volume: "C:\\"
+
+# Verbose (debug) logging.
+verbose: false
